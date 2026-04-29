@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}GCP Authentication - Apigee Deployment Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">GCP Authentication</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-key"></i> Configure GCP Access Token</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="gcp_token" class="form-label">GCP Access Token</label>
+                        <textarea class="form-control" id="gcp_token" name="gcp_token" rows="4" 
+                                  placeholder="Paste your GCP access token here..." required></textarea>
+                        <div class="form-text">
+                            This token will be used to authenticate with Apigee APIs. 
+                            You can obtain it using: <code>gcloud auth print-access-token</code>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check"></i> Validate & Save Token
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Token Status</h5>
+            </div>
+            <div class="card-body">
+                {% if session.gcp_token %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> Token is configured
+                    </div>
+                    <p class="text-muted">Token expires after 1 hour. You may need to refresh it periodically.</p>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> No token configured
+                    </div>
+                    <p class="text-muted">Please provide a valid GCP access token to use the application.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="fas fa-terminal"></i> How to Get Token</h5>
+            </div>
+            <div class="card-body">
+                <ol>
+                    <li>Install Google Cloud SDK</li>
+                    <li>Run: <code>gcloud auth login</code></li>
+                    <li>Run: <code>gcloud auth print-access-token</code></li>
+                    <li>Copy the token and paste it above</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

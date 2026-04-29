@@ -1,0 +1,543 @@
+{% extends "base.html" %}
+
+{% block title %}Deploy - Apigee Deployment Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Deploy API Proxies & Shared Flows</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-cog"></i> Organization & Environment</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="organization" class="form-label">Organization</label>
+                    <select class="form-select" id="organization" onchange="loadEnvironments()">
+                        <option value="">Select Organization...</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="environment" class="form-label">Environment</label>
+                    <select class="form-select" id="environment">
+                        <option value="">Select Environment...</option>
+                    </select>
+                </div>
+                <button class="btn btn-outline-primary" onclick="loadOrganizations()">
+                    <i class="fas fa-sync"></i> Load Organizations
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-rocket"></i> Deployment Type</h5>
+            </div>
+            <div class="card-body">
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="deployment_type" id="api_proxy" value="api_proxy" checked>
+                    <label class="btn btn-outline-primary" for="api_proxy">
+                        <i class="fas fa-code"></i> API Proxy
+                    </label>
+                    
+                    <input type="radio" class="btn-check" name="deployment_type" id="shared_flow" value="shared_flow">
+                    <label class="btn btn-outline-primary" for="shared_flow">
+                        <i class="fas fa-share-alt"></i> Shared Flow
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-upload"></i> Deployment Options</h5>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs" id="deployTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="new-tab" data-bs-toggle="tab" data-bs-target="#new" type="button" role="tab">
+                            <i class="fas fa-plus"></i> New Bundle
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="existing-tab" data-bs-toggle="tab" data-bs-target="#existing" type="button" role="tab">
+                            <i class="fas fa-list"></i> Existing
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="deployTabContent">
+                    <!-- New Bundle Tab -->
+                    <div class="tab-pane fade show active" id="new" role="tabpanel">
+                        <form method="POST" enctype="multipart/form-data" class="mt-3">
+                            <input type="hidden" name="deployment_type" id="deployment_type_hidden" value="api_proxy">
+                            <input type="hidden" name="organization" id="organization_hidden">
+                            <input type="hidden" name="environment" id="environment_hidden">
+
+                            <div id="api_proxy_section">
+                                <div class="upload-area mb-3">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                    <h5>Upload API Proxy Bundle</h5>
+                                    <p class="text-muted">Select a ZIP file containing your API proxy</p>
+                                    <input type="file" class="form-control" name="proxy_file" accept=".zip" onchange="updateFileName(this)">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="proxy_name" class="form-label">Proxy Name (optional)</label>
+                                    <input type="text" class="form-control" name="proxy_name" placeholder="Leave empty to use filename">
+                                </div>
+                            </div>
+
+                            <div id="shared_flow_section" style="display: none;">
+                                <div class="upload-area mb-3">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                    <h5>Upload Shared Flow Bundle</h5>
+                                    <p class="text-muted">Select a ZIP file containing your shared flow</p>
+                                    <input type="file" class="form-control" name="sharedflow_file" accept=".zip" onchange="updateFileName(this)">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="sharedflow_name" class="form-label">Shared Flow Name (optional)</label>
+                                    <input type="text" class="form-control" name="sharedflow_name" placeholder="Leave empty to use filename">
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" onclick="setHiddenFields()">
+                                <i class="fas fa-rocket"></i> Deploy New Bundle
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Existing Tab -->
+                    <div class="tab-pane fade" id="existing" role="tabpanel">
+                        <form method="POST" enctype="multipart/form-data" class="mt-3">
+                            <input type="hidden" name="deployment_type" id="deployment_type_hidden2" value="api_proxy">
+                            <input type="hidden" name="organization" id="organization_hidden2">
+                            <input type="hidden" name="environment" id="environment_hidden2">
+
+                            <div id="existing_api_proxy_section">
+                                <div class="mb-3">
+                                    <label for="existing_proxy" class="form-label">Select API Proxy</label>
+                                    <select class="form-select" name="existing_proxy" id="existing_proxy">
+                                        <option value="">Select API Proxy...</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="loadApiProxies()">
+                                        <i class="fas fa-sync"></i> Load Proxies
+                                    </button>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Deployment Option</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="existing_deployment_option" id="redeploy_existing" value="redeploy" checked>
+                                        <label class="form-check-label" for="redeploy_existing">
+                                            Redeploy existing revision
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="existing_deployment_option" id="upload_new_code" value="upload">
+                                        <label class="form-check-label" for="upload_new_code">
+                                            Upload new code (creates new revision)
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div id="existing_revision_section" class="mb-3">
+                                    <label for="revision" class="form-label">Revision</label>
+                                    <input type="number" class="form-control" name="revision" id="revision-input" value="1" min="1" 
+                                           oninput="console.log('Revision input changed:', this.value)"
+                                           onchange="console.log('Revision change event:', this.value)"
+                                           onblur="console.log('Revision blur event:', this.value)">
+                                </div>
+                                
+                                <div id="existing_upload_section" class="mb-3" style="display: none;">
+                                    <div class="upload-area">
+                                        <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+                                        <h6>Upload New API Proxy Code</h6>
+                                        <p class="text-muted small">Select a ZIP file with updated code</p>
+                                        <input type="file" class="form-control" name="existing_proxy_file" accept=".zip" onchange="updateFileName(this)">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="existing_shared_flow_section" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="existing_sharedflow" class="form-label">Select Shared Flow</label>
+                                    <select class="form-select" name="existing_sharedflow" id="existing_sharedflow">
+                                        <option value="">Select Shared Flow...</option>
+                                    </select>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="loadSharedFlows()">
+                                        <i class="fas fa-sync"></i> Load Shared Flows
+                                    </button>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Deployment Option</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="existing_sf_deployment_option" id="redeploy_existing_sf" value="redeploy" checked>
+                                        <label class="form-check-label" for="redeploy_existing_sf">
+                                            Redeploy existing revision
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="existing_sf_deployment_option" id="upload_new_sf_code" value="upload">
+                                        <label class="form-check-label" for="upload_new_sf_code">
+                                            Upload new code (creates new revision)
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div id="existing_sf_revision_section" class="mb-3">
+                                    <label for="sf_revision" class="form-label">Revision</label>
+                                    <input type="number" class="form-control" name="sf_revision" id="sf-revision-input" value="1" min="1"
+                                           oninput="console.log('SF Revision input changed:', this.value)"
+                                           onchange="console.log('SF Revision change event:', this.value)"
+                                           onblur="console.log('SF Revision blur event:', this.value)">
+                                </div>
+                                
+                                <div id="existing_sf_upload_section" class="mb-3" style="display: none;">
+                                    <div class="upload-area">
+                                        <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+                                        <h6>Upload New Shared Flow Code</h6>
+                                        <p class="text-muted small">Select a ZIP file with updated code</p>
+                                        <input type="file" class="form-control" name="existing_sharedflow_file" accept=".zip" onchange="updateFileName(this)">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-success" onclick="setHiddenFields2()">
+                                <i class="fas fa-play"></i> Deploy Existing
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Update deployment type sections when radio buttons change
+document.querySelectorAll('input[name="deployment_type"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        updateDeploymentType(this.value);
+    });
+});
+
+function updateDeploymentType(type) {
+    if (type === 'api_proxy') {
+        document.getElementById('api_proxy_section').style.display = 'block';
+        document.getElementById('shared_flow_section').style.display = 'none';
+        document.getElementById('existing_api_proxy_section').style.display = 'block';
+        document.getElementById('existing_shared_flow_section').style.display = 'none';
+    } else {
+        document.getElementById('api_proxy_section').style.display = 'none';
+        document.getElementById('shared_flow_section').style.display = 'block';
+        document.getElementById('existing_api_proxy_section').style.display = 'none';
+        document.getElementById('existing_shared_flow_section').style.display = 'block';
+    }
+}
+
+function updateFileName(input) {
+    const fileName = input.files[0]?.name;
+    if (fileName) {
+        const nameWithoutExt = fileName.replace('.zip', '');
+        if (input.name === 'proxy_file') {
+            document.querySelector('input[name="proxy_name"]').placeholder = `Default: ${nameWithoutExt}`;
+        } else if (input.name === 'sharedflow_file') {
+            document.querySelector('input[name="sharedflow_name"]').placeholder = `Default: ${nameWithoutExt}`;
+        }
+    }
+}
+
+function setHiddenFields() {
+    const deploymentType = document.querySelector('input[name="deployment_type"]:checked').value;
+    const org = document.getElementById('organization').value;
+    const env = document.getElementById('environment').value;
+    
+    document.getElementById('deployment_type_hidden').value = deploymentType;
+    document.getElementById('organization_hidden').value = org;
+    document.getElementById('environment_hidden').value = env;
+}
+
+function setHiddenFields2() {
+    const deploymentType = document.querySelector('input[name="deployment_type"]:checked').value;
+    const org = document.getElementById('organization').value;
+    const env = document.getElementById('environment').value;
+    
+    document.getElementById('deployment_type_hidden2').value = deploymentType;
+    document.getElementById('organization_hidden2').value = org;
+    document.getElementById('environment_hidden2').value = env;
+    
+    // Debug revision values right before submission
+    const revisionInput = document.getElementById('revision-input');
+    const sfRevisionInput = document.getElementById('sf-revision-input');
+    
+    if (revisionInput) {
+        console.log('🔍 Pre-submit API Proxy revision check:');
+        console.log('  - Input value:', revisionInput.value);
+        console.log('  - Input visible:', revisionInput.offsetParent !== null);
+        console.log('  - Parent section display:', revisionInput.closest('#existing_revision_section')?.style.display);
+    }
+    
+    if (sfRevisionInput) {
+        console.log('🔍 Pre-submit Shared Flow revision check:');
+        console.log('  - Input value:', sfRevisionInput.value);
+        console.log('  - Input visible:', sfRevisionInput.offsetParent !== null);
+        console.log('  - Parent section display:', sfRevisionInput.closest('#existing_sf_revision_section')?.style.display);
+    }
+}
+
+function loadOrganizations() {
+    const select = document.getElementById('organization');
+    select.innerHTML = '<option value="">Select Organization...</option>';
+    
+    // Try to fetch from API first, fallback to hardcoded
+    fetch('/api/organizations')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Organizations API response:', data);
+            let organizations = [];
+            
+            if (data && data.organizations) {
+                // Handle both string array and object array formats
+                organizations = data.organizations.map(org => {
+                    if (typeof org === 'string') {
+                        return org;
+                    } else if (typeof org === 'object' && org.organization) {
+                        return org.organization;
+                    }
+                    return null;
+                }).filter(org => org !== null);
+            }
+            
+            // Fallback to hardcoded if no valid organizations found
+            if (organizations.length === 0) {
+                organizations = [
+                    'irx-apm1081130-slvr-01q6',
+                    'irx-apm1082662-slvr-013l', 
+                    'irx-apm1082662-gld-01c5',
+                    'test-org-1',
+                    'test-org-2'
+                ];
+            }
+            
+            console.log('Final organizations list:', organizations);
+            
+            organizations.forEach(orgName => {
+                const option = document.createElement('option');
+                option.value = orgName;
+                option.textContent = orgName;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading organizations:', error);
+            // Fallback to hardcoded organizations
+            const organizations = [
+                'irx-apm1081130-slvr-01q6',
+                'irx-apm1082662-slvr-013l', 
+                'irx-apm1082662-gld-01c5',
+                'test-org-1',
+                'test-org-2'
+            ];
+            
+            organizations.forEach(orgName => {
+                const option = document.createElement('option');
+                option.value = orgName;
+                option.textContent = orgName;
+                select.appendChild(option);
+            });
+        });
+}
+
+function loadEnvironments() {
+    const org = window.getSafeOrgValue('organization', 'loadEnvironments');
+    if (!org) return;
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/environments`)
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('environment');
+            select.innerHTML = '<option value="">Select Environment...</option>';
+            
+            if (data && Array.isArray(data)) {
+                data.forEach(env => {
+                    const option = document.createElement('option');
+                    option.value = env.name || env;
+                    option.textContent = env.name || env;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            alert('Error loading environments: ' + error.message);
+        });
+}
+
+function loadApiProxies() {
+    const org = window.getSafeOrgValue('organization', 'loadProxies');
+    if (!org) return;
+    
+    fetch(`/api/organizations/${org}/apis`)
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('existing_proxy');
+            select.innerHTML = '<option value="">Select API Proxy...</option>';
+            
+            console.log('API Proxies data:', data);
+            
+            // Handle both array format and object with 'proxies' property
+            let proxies = [];
+            if (Array.isArray(data)) {
+                proxies = data;
+            } else if (data && data.proxies && Array.isArray(data.proxies)) {
+                proxies = data.proxies;
+            }
+            
+            proxies.forEach(proxy => {
+                const option = document.createElement('option');
+                option.value = proxy.name || proxy;
+                option.textContent = proxy.name || proxy;
+                select.appendChild(option);
+            });
+            
+            if (proxies.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No API proxies found';
+                option.disabled = true;
+                select.appendChild(option);
+            }
+        })
+        .catch(error => {
+            alert('Error loading proxies: ' + error.message);
+        });
+}
+
+function loadSharedFlows() {
+    const org = window.getSafeOrgValue('organization', 'loadSharedFlows');
+    if (!org) return;
+    
+    const select = document.getElementById('existing_sharedflow');
+    select.innerHTML = '<option value="">Select Shared Flow...</option>';
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/sharedflows`)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Shared flows data:', data);
+            
+            if (data && data.sharedFlows && Array.isArray(data.sharedFlows)) {
+                data.sharedFlows.forEach(sf => {
+                    const option = document.createElement('option');
+                    option.value = sf.name || sf;
+                    option.textContent = sf.name || sf;
+                    select.appendChild(option);
+                });
+            }
+            
+            if (select.children.length === 1) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No shared flows found';
+                option.disabled = true;
+                select.appendChild(option);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading shared flows:', error);
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Error loading shared flows';
+            option.disabled = true;
+            select.appendChild(option);
+        });
+}
+
+// Handle existing deployment option changes
+function handleExistingDeploymentOption() {
+    const uploadOption = document.getElementById('upload_new_code');
+    const uploadSection = document.getElementById('existing_upload_section');
+    const revisionSection = document.getElementById('existing_revision_section');
+    
+    if (uploadOption && uploadOption.checked) {
+        uploadSection.style.display = 'block';
+        revisionSection.style.display = 'none';
+    } else {
+        uploadSection.style.display = 'none';
+        revisionSection.style.display = 'block';
+    }
+    
+    console.log('Deployment option changed. Upload option checked:', uploadOption?.checked);
+    console.log('Revision section display:', revisionSection?.style.display);
+}
+
+function handleExistingSharedFlowOption() {
+    const uploadOption = document.getElementById('upload_new_sf_code');
+    const uploadSection = document.getElementById('existing_sf_upload_section');
+    const revisionSection = document.getElementById('existing_sf_revision_section');
+    
+    if (uploadOption && uploadOption.checked) {
+        uploadSection.style.display = 'block';
+        revisionSection.style.display = 'none';
+    } else {
+        uploadSection.style.display = 'none';
+        revisionSection.style.display = 'block';
+    }
+    
+    console.log('Shared flow deployment option changed. Upload option checked:', uploadOption?.checked);
+    console.log('Shared flow revision section display:', revisionSection?.style.display);
+}
+
+// Load organizations on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, loading organizations...');
+    loadOrganizations();
+    
+    // Add event listener to organization dropdown to debug value changes
+    const orgSelect = document.getElementById('organization');
+    if (orgSelect) {
+        orgSelect.addEventListener('change', function() {
+            const org = window.validateOrgValue(this.value, 'orgSelect.change');
+            if (org) {
+                loadEnvironments();
+                loadApiProxies();
+                loadSharedFlows();
+            }
+        });
+    }
+    
+    // Add event listeners for existing deployment options
+    const deploymentOptions = document.querySelectorAll('input[name="existing_deployment_option"]');
+    deploymentOptions.forEach(option => {
+        option.addEventListener('change', handleExistingDeploymentOption);
+    });
+    
+    const sfDeploymentOptions = document.querySelectorAll('input[name="existing_sf_deployment_option"]');
+    sfDeploymentOptions.forEach(option => {
+        option.addEventListener('change', handleExistingSharedFlowOption);
+    });
+    
+    // Add form submission debugging
+    const existingForm = document.querySelector('#existing form');
+    if (existingForm) {
+        existingForm.addEventListener('submit', function(e) {
+            const formData = new FormData(this);
+            console.log('Form submission data:');
+            for (let [key, value] of formData.entries()) {
+                console.log(`${key}: ${value}`);
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

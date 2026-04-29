@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  apigee-webapp:
+    build: .
+    container_name: apigee-deployment-webapp
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

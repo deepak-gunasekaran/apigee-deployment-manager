@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organization Dropdown Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace; }
+        select { padding: 5px; margin: 10px 0; }
+        button { padding: 8px 15px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Organization Dropdown Test</h1>
+    
+    <div class="test-section">
+        <h3>Test 1: Hardcoded Organizations</h3>
+        <select id="test_org_select">
+            <option value="">Select Organization...</option>
+        </select>
+        <button onclick="testHardcodedOrgs()">Load Hardcoded Orgs</button>
+        <button onclick="testSelectedValue()">Test Selected Value</button>
+        <div id="test_log" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: API Response Simulation</h3>
+        <button onclick="testApiResponse()">Simulate API Response</button>
+        <button onclick="testObjectHandling()">Test Object Handling</button>
+        <div id="api_log" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Live API Test</h3>
+        <button onclick="testLiveAPI()">Test Live API</button>
+        <div id="live_log" class="log"></div>
+    </div>
+
+    <script>
+        function log(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+        }
+
+        function testHardcodedOrgs() {
+            log('test_log', 'Testing hardcoded organizations...');
+            
+            const select = document.getElementById('test_org_select');
+            select.innerHTML = '<option value="">Select Organization...</option>';
+            
+            const organizations = [
+                'irx-apm1081130-slvr-01q6',
+                'irx-apm1082662-slvr-013l', 
+                'irx-apm1082662-gld-01c5',
+                'test-org-1',
+                'test-org-2'
+            ];
+            
+            organizations.forEach(orgName => {
+                log('test_log', `Adding org: ${orgName} (type: ${typeof orgName})`);
+                const option = document.createElement('option');
+                option.value = orgName;
+                option.textContent = orgName;
+                select.appendChild(option);
+            });
+            
+            log('test_log', 'Hardcoded organizations loaded successfully');
+        }
+
+        function testSelectedValue() {
+            const select = document.getElementById('test_org_select');
+            const value = select.value;
+            log('test_log', `Selected value: "${value}" (type: ${typeof value})`);
+            
+            if (value === '[object Object]') {
+                log('test_log', 'ERROR: [object Object] detected!');
+            } else if (typeof value === 'string' && value !== '') {
+                log('test_log', 'SUCCESS: Valid string value selected');
+            } else {
+                log('test_log', 'INFO: No selection or empty value');
+            }
+        }
+
+        function testApiResponse() {
+            log('api_log', 'Testing API response simulation...');
+            
+            // Simulate the backend API response format
+            const mockApiResponse = {
+                organizations: [
+                    'irx-apm1081130-slvr-01q6',
+                    'irx-apm1082662-slvr-013l', 
+                    'irx-apm1082662-gld-01c5'
+                ]
+            };
+            
+            log('api_log', `Mock API response: ${JSON.stringify(mockApiResponse)}`);
+            
+            // Test proper parsing
+            if (mockApiResponse.organizations && Array.isArray(mockApiResponse.organizations)) {
+                mockApiResponse.organizations.forEach(org => {
+                    log('api_log', `Org from API: "${org}" (type: ${typeof org})`);
+                });
+                log('api_log', 'SUCCESS: API response parsed correctly');
+            } else {
+                log('api_log', 'ERROR: Invalid API response format');
+            }
+        }
+
+        function testObjectHandling() {
+            log('api_log', 'Testing object handling scenarios...');
+            
+            // Test various problematic scenarios
+            const testCases = [
+                { name: 'String', value: 'test-org' },
+                { name: 'Object', value: { name: 'test-org' } },
+                { name: 'Array', value: ['test-org'] },
+                { name: 'Null', value: null },
+                { name: 'Undefined', value: undefined }
+            ];
+            
+            testCases.forEach(testCase => {
+                const stringValue = String(testCase.value);
+                log('api_log', `${testCase.name}: "${stringValue}" (original type: ${typeof testCase.value})`);
+                
+                if (stringValue === '[object Object]') {
+                    log('api_log', `  WARNING: ${testCase.name} converts to [object Object]`);
+                }
+            });
+        }
+
+        async function testLiveAPI() {
+            log('live_log', 'Testing live API endpoint...');
+            
+            try {
+                const response = await fetch('/api/organizations');
+                log('live_log', `API response status: ${response.status}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('live_log', `API response data: ${JSON.stringify(data)}`);
+                    
+                    if (data.organizations && Array.isArray(data.organizations)) {
+                        data.organizations.forEach(org => {
+                            log('live_log', `Live org: "${org}" (type: ${typeof org})`);
+                        });
+                        log('live_log', 'SUCCESS: Live API working correctly');
+                    } else {
+                        log('live_log', 'ERROR: Unexpected API response format');
+                    }
+                } else {
+                    log('live_log', `ERROR: API returned ${response.status}`);
+                }
+            } catch (error) {
+                log('live_log', `ERROR: ${error.message}`);
+            }
+        }
+
+        // Add event listener to test dropdown changes
+        document.getElementById('test_org_select').addEventListener('change', function() {
+            log('test_log', `Dropdown changed to: "${this.value}" (type: ${typeof this.value})`);
+        });
+    </script>
+</body>
+</html>

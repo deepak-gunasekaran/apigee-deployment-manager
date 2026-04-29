@@ -1,0 +1,1409 @@
+{% extends "base.html" %}
+
+{% block title %}Manage - Apigee Deployment Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Manage Target Servers & KVMs</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-cog"></i> Organization & Environment</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="manage_organization" class="form-label">Organization</label>
+                    <select class="form-select" id="manage_organization" onchange="loadManageEnvironments()">
+                        <option value="">Select Organization...</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="manage_environment" class="form-label">Environment</label>
+                    <select class="form-select" id="manage_environment" onchange="loadResources()">
+                        <option value="">Select Environment...</option>
+                    </select>
+                </div>
+                <button class="btn btn-outline-primary" onclick="loadManageOrganizations()">
+                    <i class="fas fa-sync"></i> Load Organizations
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-tools"></i> Resource Type</h5>
+            </div>
+            <div class="card-body">
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="resource_type" id="target_servers" value="target_servers" checked>
+                    <label class="btn btn-outline-primary" for="target_servers">
+                        <i class="fas fa-server"></i> Target Servers
+                    </label>
+                    
+                    <input type="radio" class="btn-check" name="resource_type" id="kvms" value="kvms">
+                    <label class="btn btn-outline-primary" for="kvms">
+                        <i class="fas fa-database"></i> KVMs
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 id="resource_title"><i class="fas fa-server"></i> Target Servers</h5>
+                <button class="btn btn-sm btn-outline-secondary float-end" onclick="loadResources()">
+                    <i class="fas fa-sync"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="resources_content">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-info-circle"></i> Select an organization and environment to view resources
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Target Server Modal -->
+<div class="modal fade" id="targetServerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Target Server</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="targetServerForm">
+                    <div class="mb-3">
+                        <label for="ts_name" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="ts_name" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="ts_host" class="form-label">Host</label>
+                        <input type="text" class="form-control" id="ts_host" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="ts_port" class="form-label">Port</label>
+                        <input type="number" class="form-control" id="ts_port" required>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="ts_enabled">
+                            <label class="form-check-label" for="ts_enabled">Enabled</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="ts_ssl">
+                            <label class="form-check-label" for="ts_ssl">SSL Enabled</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="updateTargetServer()">Update</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- KVM Entry Modal -->
+<div class="modal fade" id="kvmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add/Update KVM Entry</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="kvmForm">
+                    <div class="mb-3">
+                        <label for="kvm_name" class="form-label">KVM Name</label>
+                        <input type="text" class="form-control" id="kvm_name" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="entry_name" class="form-label">Entry Name</label>
+                        <input type="text" class="form-control" id="entry_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="entry_value" class="form-label">Entry Value</label>
+                        <textarea class="form-control" id="entry_value" rows="3" required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="updateKvmEntry()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Target Server Modal -->
+<div class="modal fade" id="createTargetServerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus"></i> Create New Target Server</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createTargetServerForm">
+                    <div class="mb-3">
+                        <label for="create_ts_name" class="form-label">Name *</label>
+                        <input type="text" class="form-control" id="create_ts_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="create_ts_host" class="form-label">Host *</label>
+                        <input type="text" class="form-control" id="create_ts_host" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="create_ts_port" class="form-label">Port *</label>
+                        <input type="number" class="form-control" id="create_ts_port" value="443" required>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="create_ts_enabled" checked>
+                        <label class="form-check-label" for="create_ts_enabled">Enabled</label>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="create_ts_ssl">
+                        <label class="form-check-label" for="create_ts_ssl">SSL Enabled</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="createTargetServer()">Create</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Multi-Environment Target Server Modal -->
+<div class="modal fade" id="multiEnvTargetServerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-layer-group"></i> Multi-Environment Target Server Management</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="multiEnvTargetServerForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="multi_operation" class="form-label">Operation *</label>
+                                <select class="form-select" id="multi_operation" required>
+                                    <option value="create">Create</option>
+                                    <option value="update">Update</option>
+                                    <option value="delete">Delete</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="multi_ts_name" class="form-label">Name *</label>
+                                <input type="text" class="form-control" id="multi_ts_name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="multi_ts_host" class="form-label">Host</label>
+                                <input type="text" class="form-control" id="multi_ts_host">
+                            </div>
+                            <div class="mb-3">
+                                <label for="multi_ts_port" class="form-label">Port</label>
+                                <input type="number" class="form-control" id="multi_ts_port" value="443">
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="multi_ts_enabled" checked>
+                                <label class="form-check-label" for="multi_ts_enabled">Enabled</label>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="multi_ts_ssl">
+                                <label class="form-check-label" for="multi_ts_ssl">SSL Enabled</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Select Environments *</label>
+                                <div id="multi_environments_container" class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                                    <div class="text-center text-muted">Loading environments...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="executeMultiEnvOperation()">Execute</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create KVM Modal -->
+<div class="modal fade" id="createKvmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus"></i> Create New KVM</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createKvmForm">
+                    <div class="mb-3">
+                        <label for="create_kvm_name" class="form-label">KVM Name *</label>
+                        <input type="text" class="form-control" id="create_kvm_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="create_kvm_encrypted" class="form-label">Encrypted</label>
+                        <select class="form-select" id="create_kvm_encrypted">
+                            <option value="false">No</option>
+                            <option value="true">Yes</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="createKvm()">Create</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Multi-Environment KVM Modal -->
+<div class="modal fade" id="multiEnvKvmModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-layer-group"></i> Multi-Environment KVM Management</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="multiEnvKvmForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="multi_kvm_operation" class="form-label">Operation *</label>
+                                <select class="form-select" id="multi_kvm_operation" required>
+                                    <option value="create">Create KVM</option>
+                                    <option value="delete">Delete KVM</option>
+                                    <option value="create_entry">Create Entry</option>
+                                    <option value="update_entry">Update Entry</option>
+                                    <option value="delete_entry">Delete Entry</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="multi_kvm_name" class="form-label">KVM Name *</label>
+                                <input type="text" class="form-control" id="multi_kvm_name" required>
+                            </div>
+                            <div class="mb-3" id="kvm_encrypted_section">
+                                <label for="multi_kvm_encrypted" class="form-label">Encrypted</label>
+                                <select class="form-select" id="multi_kvm_encrypted">
+                                    <option value="false">No</option>
+                                    <option value="true">Yes</option>
+                                </select>
+                            </div>
+                            <div class="mb-3" id="delete_entries_section" style="display: none;">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="delete_entries_first">
+                                    <label class="form-check-label" for="delete_entries_first">
+                                        Delete specific entries before deleting KVM (optional)
+                                    </label>
+                                </div>
+                                <div id="entries_to_delete_section" style="display: none; margin-top: 10px;">
+                                    <label for="entries_to_delete" class="form-label">Entry Keys to Delete (comma-separated)</label>
+                                    <textarea class="form-control" id="entries_to_delete" rows="2" placeholder="key1, key2, key3"></textarea>
+                                    <small class="form-text text-muted">Enter the keys of entries to delete before deleting the KVM. Leave empty to delete entire KVM only.</small>
+                                </div>
+                            </div>
+                            <div class="mb-3" id="entry_key_section" style="display: none;">
+                                <label for="multi_entry_key" class="form-label">Entry Key *</label>
+                                <input type="text" class="form-control" id="multi_entry_key">
+                            </div>
+                            <div class="mb-3" id="entry_value_section" style="display: none;">
+                                <label for="multi_entry_value" class="form-label">Entry Value *</label>
+                                <textarea class="form-control" id="multi_entry_value" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Select Environments *</label>
+                                <div id="multi_kvm_environments_container" class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                                    <div class="text-center text-muted">Loading environments...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="executeMultiEnvKvmOperation()">Execute</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentTargetServer = '';
+let currentKvm = '';
+
+// Update resource type sections when radio buttons change
+document.querySelectorAll('input[name="resource_type"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        updateResourceType(this.value);
+        loadResources();
+    });
+});
+
+function updateResourceType(type) {
+    const title = document.getElementById('resource_title');
+    if (type === 'target_servers') {
+        title.innerHTML = '<i class="fas fa-server"></i> Target Servers';
+    } else {
+        title.innerHTML = '<i class="fas fa-database"></i> Key-Value Maps';
+    }
+}
+
+function loadManageOrganizations() {
+    const select = document.getElementById('manage_organization');
+    select.innerHTML = '<option value="">Select Organization...</option>';
+    
+    // Try to fetch from API first, fallback to hardcoded
+    fetch('/api/organizations')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Manage Organizations API response:', data);
+            let organizations = [];
+            
+            if (data && data.organizations) {
+                // Handle both string array and object array formats
+                organizations = data.organizations.map(org => {
+                    if (typeof org === 'string') {
+                        return org;
+                    } else if (typeof org === 'object' && org.organization) {
+                        return org.organization;
+                    }
+                    return null;
+                }).filter(org => org !== null);
+            }
+            
+            // Fallback to hardcoded if no valid organizations found
+            if (organizations.length === 0) {
+                organizations = [
+                    'irx-apm1081130-slvr-01q6',
+                    'irx-apm1082662-slvr-013l', 
+                    'irx-apm1082662-gld-01c5',
+                    'test-org-1',
+                    'test-org-2'
+                ];
+            }
+            
+            console.log('Final manage organizations list:', organizations);
+            
+            organizations.forEach(orgName => {
+                const option = document.createElement('option');
+                option.value = orgName;
+                option.textContent = orgName;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading manage organizations:', error);
+            // Fallback to hardcoded organizations
+            const organizations = [
+                'irx-apm1081130-slvr-01q6',
+                'irx-apm1082662-slvr-013l', 
+                'irx-apm1082662-gld-01c5',
+                'test-org-1',
+                'test-org-2'
+            ];
+            
+            organizations.forEach(orgName => {
+                const option = document.createElement('option');
+                option.value = orgName;
+                option.textContent = orgName;
+                select.appendChild(option);
+            });
+        });
+}
+
+function loadManageEnvironments() {
+    const org = window.getSafeOrgValue('manage_organization', 'loadManageEnvironments');
+    if (!org) return;
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/environments`)
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('manage_environment');
+            select.innerHTML = '<option value="">Select Environment...</option>';
+            
+            if (data && Array.isArray(data)) {
+                data.forEach(env => {
+                    const option = document.createElement('option');
+                    option.value = env.name || env;
+                    option.textContent = env.name || env;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            alert('Error loading environments: ' + error.message);
+        });
+}
+
+function loadResources() {
+    const org = document.getElementById('manage_organization').value;
+    const env = document.getElementById('manage_environment').value;
+    const resourceType = document.querySelector('input[name="resource_type"]:checked').value;
+    
+    if (!org || !env) {
+        document.getElementById('resources_content').innerHTML = 
+            '<div class="text-center text-muted"><i class="fas fa-info-circle"></i> Select an organization and environment to view resources</div>';
+        return;
+    }
+    
+    document.getElementById('resources_content').innerHTML = 
+        '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+    
+    const endpoint = resourceType === 'target_servers' ? 'targetservers' : 'keyvaluemaps';
+    const url = `/api/organizations/${encodeURIComponent(org)}/environments/${encodeURIComponent(env)}/${endpoint}`;
+    
+    console.log(`Loading ${resourceType} from: ${url}`);
+    
+    fetch(url)
+        .then(response => {
+            console.log(`Response status: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            console.log(`Received data for ${resourceType}:`, data);
+            if (resourceType === 'target_servers') {
+                displayTargetServers(data);
+            } else {
+                displayKvms(data);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading resources:', error);
+            document.getElementById('resources_content').innerHTML = 
+                '<div class="alert alert-danger">Error loading resources: ' + error.message + '</div>';
+        });
+}
+
+function displayTargetServers(data) {
+    console.log('Target servers data received:', data);
+    let html = '';
+    
+    // Add header with create button
+    html += `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5><i class="fas fa-server"></i> Target Servers</h5>
+            <div>
+                <button class="btn btn-success btn-sm me-2" onclick="showCreateTargetServerModal()">
+                    <i class="fas fa-plus"></i> Create New
+                </button>
+                <button class="btn btn-info btn-sm" onclick="showMultiEnvTargetServerModal()">
+                    <i class="fas fa-layer-group"></i> Multi-Environment
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Handle error responses
+    if (data && data.error) {
+        html += `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error: ${data.error}</div>`;
+        document.getElementById('resources_content').innerHTML = html;
+        return;
+    }
+    
+    if (data && Array.isArray(data) && data.length > 0) {
+        html += '<div class="table-responsive"><table class="table table-striped"><thead><tr><th>Name</th><th>Host</th><th>Port</th><th>Enabled</th><th>SSL</th><th>Actions</th></tr></thead><tbody>';
+        
+        data.forEach(ts => {
+            console.log('Processing target server:', ts);
+            
+            // Handle different response formats - if it's just a string, show basic info
+            if (typeof ts === 'string') {
+                html += `
+                    <tr>
+                        <td>${ts}</td>
+                        <td>Not Available</td>
+                        <td>Not Available</td>
+                        <td><span class="badge bg-secondary">Unknown</span></td>
+                        <td><span class="badge bg-secondary">Unknown</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-secondary" disabled>
+                                <i class="fas fa-info"></i> Details Not Available
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            // Handle object response formats
+            const name = ts.name || ts.targetServerName || ts || 'Unknown';
+            const host = ts.host || ts.hostName || ts.hostname || 'Not Available';
+            const port = ts.port || ts.portNumber || ts.portNum || 'Not Available';
+            const isEnabled = ts.isEnabled !== undefined ? ts.isEnabled : (ts.enabled !== undefined ? ts.enabled : true);
+            const sslEnabled = ts.sSLInfo?.enabled || ts.sslInfo?.enabled || ts.ssl?.enabled || ts.tls?.enabled || false;
+            
+            html += `
+                <tr>
+                    <td><strong>${name}</strong></td>
+                    <td>${host}</td>
+                    <td>${port}</td>
+                    <td><span class="badge ${isEnabled ? 'bg-success' : 'bg-secondary'}">${isEnabled ? 'Yes' : 'No'}</span></td>
+                    <td><span class="badge ${sslEnabled ? 'bg-success' : 'bg-secondary'}">${sslEnabled ? 'Yes' : 'No'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editTargetServer('${name}', '${host}', '${port}', ${isEnabled}, ${sslEnabled})">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTargetServer('${name}')">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table></div>';
+    } else if (data && !Array.isArray(data)) {
+        // Handle non-array response
+        html += `<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> Unexpected response format: ${JSON.stringify(data)}</div>`;
+    } else {
+        html += '<div class="alert alert-info"><i class="fas fa-info-circle"></i> No target servers found</div>';
+    }
+    
+    document.getElementById('resources_content').innerHTML = html;
+}
+
+function displayKvms(data) {
+    console.log('KVMs data received:', data);
+    let html = '';
+    
+    // Add header with multi-environment buttons
+    html += `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5><i class="fas fa-database"></i> Key-Value Maps</h5>
+            <div>
+                <button class="btn btn-success btn-sm me-2" onclick="showCreateKvmModal()">
+                    <i class="fas fa-plus"></i> Create New KVM
+                </button>
+                <button class="btn btn-info btn-sm" onclick="showMultiEnvKvmModal()">
+                    <i class="fas fa-layer-group"></i> Multi-Environment KVM
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Handle error responses
+    if (data && data.error) {
+        html += `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error: ${data.error}</div>`;
+        if (data.details) {
+            html += `<div class="alert alert-warning"><small>Details: ${data.details}</small></div>`;
+        }
+        document.getElementById('resources_content').innerHTML = html;
+        return;
+    }
+    
+    if (data && Array.isArray(data) && data.length > 0) {
+        html += '<div class="row">';
+        
+        data.forEach(kvm => {
+            const kvmName = kvm.name || kvm;
+            html += `
+                <div class="col-md-4 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">${kvmName}</h6>
+                            <p class="card-text text-muted">Key-Value Map</p>
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewKvmEntries('${kvmName}')">
+                                <i class="fas fa-eye"></i> View Entries
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+    } else if (data && !Array.isArray(data)) {
+        // Handle non-array response
+        html += `<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> Unexpected response format: ${JSON.stringify(data)}</div>`;
+    } else {
+        html += '<div class="alert alert-info"><i class="fas fa-info-circle"></i> No KVMs found</div>';
+    }
+    
+    document.getElementById('resources_content').innerHTML = html;
+}
+
+function viewKvmEntries(kvmName) {
+    const org = document.getElementById('manage_organization').value;
+    const env = document.getElementById('manage_environment').value;
+    
+    if (!org || !env) {
+        alert('Please select organization and environment first');
+        return;
+    }
+    
+    console.log(`Loading KVM entries for: ${kvmName}`);
+    
+    // Show loading state
+    document.getElementById('resources_content').innerHTML = 
+        '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading KVM entries...</span></div></div>';
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/environments/${encodeURIComponent(env)}/keyvaluemaps/${encodeURIComponent(kvmName)}/entries`)
+        .then(response => {
+            console.log(`KVM entries response status: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            console.log(`KVM entries data:`, data);
+            displayKvmEntries(kvmName, data);
+        })
+        .catch(error => {
+            console.error('Error loading KVM entries:', error);
+            document.getElementById('resources_content').innerHTML = 
+                '<div class="alert alert-danger">Error loading KVM entries: ' + error.message + '</div>';
+        });
+}
+
+function displayKvmEntries(kvmName, data) {
+    let html = `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5><i class="fas fa-key"></i> KVM Entries: ${kvmName}</h5>
+            <button class="btn btn-sm btn-secondary" onclick="loadResources()">
+                <i class="fas fa-arrow-left"></i> Back to KVMs
+            </button>
+        </div>
+    `;
+    
+    // Handle error responses
+    if (data && data.error) {
+        html += `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Error: ${data.error}</div>`;
+        if (data.details) {
+            html += `<div class="alert alert-warning"><small>Details: ${data.details}</small></div>`;
+        }
+        document.getElementById('resources_content').innerHTML = html;
+        return;
+    }
+    
+    // Handle KVM entries
+    if (data && data.keyValueEntries && Array.isArray(data.keyValueEntries) && data.keyValueEntries.length > 0) {
+        html += '<div class="table-responsive"><table class="table table-striped"><thead><tr><th>Key</th><th>Value</th><th>Actions</th></tr></thead><tbody>';
+        
+        data.keyValueEntries.forEach(entry => {
+            const key = entry.name || entry.key || 'Unknown';
+            const value = entry.value || 'No value';
+            
+            html += `
+                <tr>
+                    <td><strong>${key}</strong></td>
+                    <td><code>${value}</code></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editKvmEntry('${kvmName}', '${key}', '${value}')">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteKvmEntry('${kvmName}', '${key}')">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table></div>';
+    } else {
+        html += '<div class="alert alert-info"><i class="fas fa-info-circle"></i> No entries found in this KVM</div>';
+    }
+    
+    document.getElementById('resources_content').innerHTML = html;
+}
+
+function editKvmEntry(kvmName, key, currentValue) {
+    const newValue = prompt(`Edit value for key "${key}":`, currentValue);
+    if (newValue === null) return; // User cancelled
+    
+    const org = document.getElementById('manage_organization').value;
+    const env = document.getElementById('manage_environment').value;
+    
+    const data = { name: key, value: newValue };
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/environments/${encodeURIComponent(env)}/keyvaluemaps/${encodeURIComponent(kvmName)}/entries/${encodeURIComponent(key)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('KVM entry updated successfully!');
+            viewKvmEntries(kvmName); // Refresh the entries
+        } else {
+            alert('Error updating KVM entry: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error updating KVM entry:', error);
+        alert('Error updating KVM entry: ' + error.message);
+    });
+}
+
+function deleteKvmEntry(kvmName, key) {
+    if (!confirm(`Are you sure you want to delete the key "${key}" from KVM "${kvmName}"?`)) {
+        return;
+    }
+    
+    const org = document.getElementById('manage_organization').value;
+    const env = document.getElementById('manage_environment').value;
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/environments/${encodeURIComponent(env)}/keyvaluemaps/${encodeURIComponent(kvmName)}/entries/${encodeURIComponent(key)}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('KVM entry deleted successfully!');
+            viewKvmEntries(kvmName); // Refresh the entries
+        } else {
+            alert('Error deleting KVM entry: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting KVM entry:', error);
+        alert('Error deleting KVM entry: ' + error.message);
+    });
+}
+
+function editTargetServer(name, host, port, enabled, ssl) {
+    currentTargetServer = name;
+    document.getElementById('ts_name').value = name;
+    document.getElementById('ts_host').value = host;
+    document.getElementById('ts_port').value = port;
+    document.getElementById('ts_enabled').checked = enabled;
+    document.getElementById('ts_ssl').checked = ssl;
+    
+    new bootstrap.Modal(document.getElementById('targetServerModal')).show();
+}
+
+function updateTargetServer() {
+    const org = document.getElementById('manage_organization').value;
+    const env = document.getElementById('manage_environment').value;
+    
+    const data = {
+        name: document.getElementById('ts_name').value,
+        host: document.getElementById('ts_host').value,
+        port: parseInt(document.getElementById('ts_port').value),
+        isEnabled: document.getElementById('ts_enabled').checked,
+        sSLInfo: {
+            enabled: document.getElementById('ts_ssl').checked
+        }
+    };
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/environments/${encodeURIComponent(env)}/targetservers/${encodeURIComponent(currentTargetServer)}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.error) {
+            alert('Error updating target server: ' + result.error);
+        } else {
+            alert('Target server updated successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('targetServerModal')).hide();
+            loadResources();
+        }
+    })
+    .catch(error => {
+        alert('Error updating target server: ' + error.message);
+    });
+}
+
+function manageKvm(kvmName) {
+    currentKvm = kvmName;
+    document.getElementById('kvm_name').value = kvmName;
+    document.getElementById('entry_name').value = '';
+    document.getElementById('entry_value').value = '';
+    
+    new bootstrap.Modal(document.getElementById('kvmModal')).show();
+}
+
+function updateKvmEntry() {
+    const org = document.getElementById('manage_organization').value;
+    const env = document.getElementById('manage_environment').value;
+    
+    const data = {
+        name: document.getElementById('entry_name').value,
+        value: document.getElementById('entry_value').value
+    };
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/environments/${encodeURIComponent(env)}/keyvaluemaps/${encodeURIComponent(currentKvm)}/entries`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.error) {
+            alert('Error updating KVM entry: ' + result.error);
+        } else {
+            alert('KVM entry updated successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('kvmModal')).hide();
+        }
+    })
+    .catch(error => {
+        alert('Error updating KVM entry: ' + error.message);
+    });
+}
+
+function showCreateTargetServerModal() {
+    // Reset form
+    document.getElementById('create_ts_name').value = '';
+    document.getElementById('create_ts_host').value = '';
+    document.getElementById('create_ts_port').value = '443';
+    document.getElementById('create_ts_enabled').checked = true;
+    document.getElementById('create_ts_ssl').checked = false;
+    
+    new bootstrap.Modal(document.getElementById('createTargetServerModal')).show();
+}
+
+function createTargetServer() {
+    const org = document.getElementById('manage_organization').value;
+    const env = document.getElementById('manage_environment').value;
+    
+    if (!org || !env) {
+        alert('Please select organization and environment first');
+        return;
+    }
+    
+    const data = {
+        name: document.getElementById('create_ts_name').value,
+        host: document.getElementById('create_ts_host').value,
+        port: parseInt(document.getElementById('create_ts_port').value),
+        isEnabled: document.getElementById('create_ts_enabled').checked,
+        protocol: 'HTTP'
+    };
+    
+    if (document.getElementById('create_ts_ssl').checked) {
+        data.sSLInfo = { enabled: true };
+    }
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/environments/${encodeURIComponent(env)}/targetservers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Target server created successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('createTargetServerModal')).hide();
+            loadResources();
+        } else {
+            alert('Error creating target server: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error creating target server:', error);
+        alert('Error creating target server: ' + error.message);
+    });
+}
+
+function deleteTargetServer(name) {
+    if (!confirm(`Are you sure you want to delete target server "${name}"?`)) {
+        return;
+    }
+    
+    const org = document.getElementById('manage_organization').value;
+    const env = document.getElementById('manage_environment').value;
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/environments/${encodeURIComponent(env)}/targetservers/${encodeURIComponent(name)}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Target server deleted successfully!');
+            loadResources();
+        } else {
+            alert('Error deleting target server: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting target server:', error);
+        alert('Error deleting target server: ' + error.message);
+    });
+}
+
+function showMultiEnvTargetServerModal() {
+    const org = document.getElementById('manage_organization').value;
+    if (!org) {
+        alert('Please select an organization first');
+        return;
+    }
+    
+    // Load environments for multi-selection
+    loadEnvironmentsForMultiSelect();
+    
+    // Reset form
+    document.getElementById('multi_ts_name').value = '';
+    document.getElementById('multi_ts_host').value = '';
+    document.getElementById('multi_ts_port').value = '443';
+    document.getElementById('multi_ts_enabled').checked = true;
+    document.getElementById('multi_ts_ssl').checked = false;
+    document.getElementById('multi_operation').value = 'create';
+    
+    new bootstrap.Modal(document.getElementById('multiEnvTargetServerModal')).show();
+}
+
+function loadEnvironmentsForMultiSelect() {
+    const org = document.getElementById('manage_organization').value;
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/environments`)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('multi_environments_container');
+            let html = '';
+            
+            const environments = Array.isArray(data) ? data : (data.environments || []);
+            
+            environments.forEach(env => {
+                const envName = typeof env === 'string' ? env : env.name;
+                html += `
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="${envName}" id="env_${envName}">
+                        <label class="form-check-label" for="env_${envName}">
+                            ${envName}
+                        </label>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading environments:', error);
+            document.getElementById('multi_environments_container').innerHTML = 
+                '<div class="alert alert-danger">Error loading environments</div>';
+        });
+}
+
+function executeMultiEnvOperation() {
+    const org = document.getElementById('manage_organization').value;
+    const operation = document.getElementById('multi_operation').value;
+    
+    // Get selected environments
+    const selectedEnvs = [];
+    document.querySelectorAll('#multi_environments_container input[type="checkbox"]:checked').forEach(checkbox => {
+        selectedEnvs.push(checkbox.value);
+    });
+    
+    if (selectedEnvs.length === 0) {
+        alert('Please select at least one environment');
+        return;
+    }
+    
+    const data = {
+        name: document.getElementById('multi_ts_name').value,
+        host: document.getElementById('multi_ts_host').value,
+        port: parseInt(document.getElementById('multi_ts_port').value),
+        isEnabled: document.getElementById('multi_ts_enabled').checked,
+        protocol: 'HTTP',
+        environments: selectedEnvs
+    };
+    
+    if (document.getElementById('multi_ts_ssl').checked) {
+        data.sSLInfo = { enabled: true };
+    }
+    
+    const method = operation === 'create' ? 'POST' : (operation === 'update' ? 'PUT' : 'DELETE');
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/targetservers/multi`, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        let message = `Multi-environment ${operation} completed:\n`;
+        message += `✅ Successful: ${result.success_count}\n`;
+        message += `❌ Failed: ${result.error_count}\n\n`;
+        
+        if (result.results && result.results.length > 0) {
+            message += 'Successful environments:\n';
+            result.results.forEach(r => {
+                message += `- ${r.environment}`;
+                if (r.warning) {
+                    message += ` (Warning: ${r.warning})`;
+                }
+                message += '\n';
+            });
+        }
+        
+        if (result.errors && result.errors.length > 0) {
+            message += '\nFailed environments:\n';
+            result.errors.forEach(e => {
+                if (e.status === 409) {
+                    message += `- ${e.environment}: Already exists (${e.error})\n`;
+                } else {
+                    message += `- ${e.environment}: ${e.error}\n`;
+                }
+            });
+        }
+        
+        // Show different alert types based on results
+        if (result.error_count === 0) {
+            alert('✅ ' + message);
+        } else if (result.success_count > 0) {
+            alert('⚠️ Partial Success:\n' + message);
+        } else {
+            alert('❌ Operation Failed:\n' + message);
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('multiEnvTargetServerModal')).hide();
+        loadResources();
+    })
+    .catch(error => {
+        console.error('Error in multi-environment operation:', error);
+        alert('Error in multi-environment operation: ' + error.message);
+    });
+}
+
+function showCreateKvmModal() {
+    // Reset form
+    document.getElementById('create_kvm_name').value = '';
+    document.getElementById('create_kvm_encrypted').value = 'false';
+    
+    new bootstrap.Modal(document.getElementById('createKvmModal')).show();
+}
+
+function createKvm() {
+    const org = document.getElementById('manage_organization').value;
+    const env = document.getElementById('manage_environment').value;
+    
+    if (!org || !env) {
+        alert('Please select organization and environment first');
+        return;
+    }
+    
+    const data = {
+        name: document.getElementById('create_kvm_name').value,
+        encrypted: document.getElementById('create_kvm_encrypted').value === 'true'
+    };
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/environments/${encodeURIComponent(env)}/keyvaluemaps`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success || result.name) {
+            alert('KVM created successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('createKvmModal')).hide();
+            loadResources();
+        } else {
+            alert('Error creating KVM: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error creating KVM:', error);
+        alert('Error creating KVM: ' + error.message);
+    });
+}
+
+function showMultiEnvKvmModal() {
+    const org = document.getElementById('manage_organization').value;
+    if (!org) {
+        alert('Please select an organization first');
+        return;
+    }
+    
+    // Load environments for multi-selection
+    loadEnvironmentsForKvmMultiSelect();
+    
+    // Reset form
+    document.getElementById('multi_kvm_name').value = '';
+    document.getElementById('multi_kvm_encrypted').value = 'false';
+    document.getElementById('multi_kvm_operation').value = 'create';
+    document.getElementById('multi_entry_key').value = '';
+    document.getElementById('multi_entry_value').value = '';
+    
+    // Show/hide sections based on operation
+    updateKvmOperationSections();
+    
+    new bootstrap.Modal(document.getElementById('multiEnvKvmModal')).show();
+}
+
+function loadEnvironmentsForKvmMultiSelect() {
+    const org = document.getElementById('manage_organization').value;
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/environments`)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('multi_kvm_environments_container');
+            let html = '';
+            
+            const environments = Array.isArray(data) ? data : (data.environments || []);
+            
+            environments.forEach(env => {
+                const envName = typeof env === 'string' ? env : env.name;
+                html += `
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="${envName}" id="kvm_env_${envName}">
+                        <label class="form-check-label" for="kvm_env_${envName}">
+                            ${envName}
+                        </label>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading environments:', error);
+            document.getElementById('multi_kvm_environments_container').innerHTML = 
+                '<div class="alert alert-danger">Error loading environments</div>';
+        });
+}
+
+function updateKvmOperationSections() {
+    const operation = document.getElementById('multi_kvm_operation').value;
+    const encryptedSection = document.getElementById('kvm_encrypted_section');
+    const deleteEntriesSection = document.getElementById('delete_entries_section');
+    const keySection = document.getElementById('entry_key_section');
+    const valueSection = document.getElementById('entry_value_section');
+    const keyInput = document.getElementById('multi_entry_key');
+    const valueInput = document.getElementById('multi_entry_value');
+    const deleteEntriesCheckbox = document.getElementById('delete_entries_first');
+    const entriesToDeleteTextarea = document.getElementById('entries_to_delete');
+    
+    // Clear entry fields when switching operations
+    keyInput.value = '';
+    valueInput.value = '';
+    deleteEntriesCheckbox.checked = false;
+    entriesToDeleteTextarea.value = '';
+    
+    // Show/hide sections based on operation
+    if (operation === 'create') {
+        encryptedSection.style.display = 'block';
+        deleteEntriesSection.style.display = 'none';
+        keySection.style.display = 'none';
+        valueSection.style.display = 'none';
+        keyInput.required = false;
+        valueInput.required = false;
+    } else if (operation === 'delete') {
+        encryptedSection.style.display = 'none';
+        deleteEntriesSection.style.display = 'block';
+        keySection.style.display = 'none';
+        valueSection.style.display = 'none';
+        keyInput.required = false;
+        valueInput.required = false;
+    } else if (operation === 'create_entry' || operation === 'update_entry') {
+        encryptedSection.style.display = 'none';
+        deleteEntriesSection.style.display = 'none';
+        keySection.style.display = 'block';
+        valueSection.style.display = 'block';
+        keyInput.required = true;
+        valueInput.required = true;
+    } else if (operation === 'delete_entry') {
+        encryptedSection.style.display = 'none';
+        deleteEntriesSection.style.display = 'none';
+        keySection.style.display = 'block';
+        valueSection.style.display = 'none';
+        keyInput.required = true;
+        valueInput.required = false;
+    }
+}
+
+// Add event listener for delete entries checkbox
+function toggleDeleteEntriesSection() {
+    const checkbox = document.getElementById('delete_entries_first');
+    const section = document.getElementById('entries_to_delete_section');
+    section.style.display = checkbox.checked ? 'block' : 'none';
+}
+
+// Add event listener for operation change
+document.addEventListener('DOMContentLoaded', function() {
+    const operationSelect = document.getElementById('multi_kvm_operation');
+    if (operationSelect) {
+        operationSelect.addEventListener('change', updateKvmOperationSections);
+    }
+    
+    const deleteEntriesCheckbox = document.getElementById('delete_entries_first');
+    if (deleteEntriesCheckbox) {
+        deleteEntriesCheckbox.addEventListener('change', toggleDeleteEntriesSection);
+    }
+});
+
+function executeMultiEnvKvmOperation() {
+    const org = document.getElementById('manage_organization').value;
+    const operation = document.getElementById('multi_kvm_operation').value;
+    const kvmName = document.getElementById('multi_kvm_name').value;
+    
+    // Get selected environments
+    const selectedEnvs = [];
+    document.querySelectorAll('#multi_kvm_environments_container input[type="checkbox"]:checked').forEach(checkbox => {
+        selectedEnvs.push(checkbox.value);
+    });
+    
+    if (selectedEnvs.length === 0) {
+        alert('Please select at least one environment');
+        return;
+    }
+    
+    if (!kvmName) {
+        alert('Please enter a KVM name');
+        return;
+    }
+    
+    let data = {
+        name: kvmName,
+        environments: selectedEnvs
+    };
+    
+    let url, method;
+    
+    if (operation === 'create') {
+        data.encrypted = document.getElementById('multi_kvm_encrypted').value === 'true';
+        url = `/api/organizations/${encodeURIComponent(org)}/keyvaluemaps/multi`;
+        method = 'POST';
+    } else if (operation === 'delete') {
+        // Check if user wants to delete specific entries first
+        const deleteEntriesFirst = document.getElementById('delete_entries_first').checked;
+        if (deleteEntriesFirst) {
+            const entriesToDelete = document.getElementById('entries_to_delete').value.trim();
+            if (entriesToDelete) {
+                // Parse comma-separated entry keys
+                const entryKeys = entriesToDelete.split(',').map(key => key.trim()).filter(key => key.length > 0);
+                if (entryKeys.length > 0) {
+                    data.deleteEntriesFirst = true;
+                    data.entryKeys = entryKeys;
+                }
+            }
+        }
+        url = `/api/organizations/${encodeURIComponent(org)}/keyvaluemaps/multi`;
+        method = 'DELETE';
+    } else if (operation === 'create_entry') {
+        const entryKey = document.getElementById('multi_entry_key').value.trim();
+        const entryValue = document.getElementById('multi_entry_value').value.trim();
+        if (!entryKey || !entryValue) {
+            alert('Please enter both entry key and value for creating an entry');
+            return;
+        }
+        data.name = entryKey;
+        data.value = entryValue;
+        url = `/api/organizations/${encodeURIComponent(org)}/keyvaluemaps/${encodeURIComponent(kvmName)}/entries/multi`;
+        method = 'POST';
+    } else if (operation === 'update_entry') {
+        const entryKey = document.getElementById('multi_entry_key').value.trim();
+        const entryValue = document.getElementById('multi_entry_value').value.trim();
+        if (!entryKey || !entryValue) {
+            alert('Please enter both entry key and value for updating an entry');
+            return;
+        }
+        data.name = entryKey;
+        data.value = entryValue;
+        url = `/api/organizations/${encodeURIComponent(org)}/keyvaluemaps/${encodeURIComponent(kvmName)}/entries/multi`;
+        method = 'PUT';
+    } else if (operation === 'delete_entry') {
+        const entryKey = document.getElementById('multi_entry_key').value.trim();
+        if (!entryKey) {
+            alert('Please enter the entry key to delete');
+            return;
+        }
+        data.name = entryKey;
+        url = `/api/organizations/${encodeURIComponent(org)}/keyvaluemaps/${encodeURIComponent(kvmName)}/entries/multi`;
+        method = 'DELETE';
+    }
+    
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        let message = `Multi-environment ${operation.replace('_', ' ')} completed:\n`;
+        message += `✅ Successful: ${result.success_count}\n`;
+        message += `❌ Failed: ${result.error_count}\n\n`;
+        
+        if (result.results && result.results.length > 0) {
+            message += 'Successful environments:\n';
+            result.results.forEach(r => {
+                message += `- ${r.environment}`;
+                if (r.warning) {
+                    message += ` (Warning: ${r.warning})`;
+                }
+                message += '\n';
+            });
+        }
+        
+        if (result.errors && result.errors.length > 0) {
+            message += '\nFailed environments:\n';
+            result.errors.forEach(e => {
+                if (e.status === 409) {
+                    message += `- ${e.environment}: Already exists (${e.error})\n`;
+                } else {
+                    message += `- ${e.environment}: ${e.error}\n`;
+                }
+            });
+        }
+        
+        // Show different alert types based on results
+        if (result.error_count === 0) {
+            alert('✅ ' + message);
+        } else if (result.success_count > 0) {
+            alert('⚠️ Partial Success:\n' + message);
+        } else {
+            alert('❌ Operation Failed:\n' + message);
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('multiEnvKvmModal')).hide();
+        loadResources();
+    })
+    .catch(error => {
+        console.error('Error in multi-environment KVM operation:', error);
+        alert('Error in multi-environment KVM operation: ' + error.message);
+    });
+}
+
+// Load organizations on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, loading manage organizations...');
+    loadManageOrganizations();
+    
+    // Add event listener to organization dropdown to debug value changes
+    const orgSelect = document.getElementById('manage_organization');
+    if (orgSelect) {
+        orgSelect.addEventListener('change', function() {
+            const org = window.validateOrgValue(this.value, 'manageOrgSelect.change');
+            if (org) {
+                loadManageEnvironments();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

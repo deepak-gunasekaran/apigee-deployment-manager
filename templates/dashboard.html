@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Apigee Deployment Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">GCP Token</h5>
+                        <p class="card-text">
+                            {% if session.gcp_token %}
+                                <i class="fas fa-check-circle"></i> Configured
+                            {% else %}
+                                <i class="fas fa-exclamation-triangle"></i> Not Set
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-key fa-2x"></i>
+                    </div>
+                </div>
+                <a href="{{ url_for('auth') }}" class="btn btn-light btn-sm">Configure</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Deploy</h5>
+                        <p class="card-text">API Proxies & Shared Flows</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-rocket fa-2x"></i>
+                    </div>
+                </div>
+                <a href="{{ url_for('deploy') }}" class="btn btn-light btn-sm">Deploy Now</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Manage</h5>
+                        <p class="card-text">Target Servers & KVMs</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-cogs fa-2x"></i>
+                    </div>
+                </div>
+                <a href="{{ url_for('manage') }}" class="btn btn-light btn-sm">Manage</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Organizations</h5>
+                        <p class="card-text">View & Select</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-building fa-2x"></i>
+                    </div>
+                </div>
+                <button class="btn btn-light btn-sm" onclick="loadOrganizations()">Load Orgs</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Quick Start Guide</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-list-ol"></i> Getting Started</h6>
+                        <ol>
+                            <li>Configure your GCP token in the <strong>GCP Authentication</strong> section</li>
+                            <li>Select your organization and environment</li>
+                            <li>Choose to deploy new bundles or manage existing resources</li>
+                        </ol>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-tools"></i> Features</h6>
+                        <ul>
+                            <li><strong>Deploy:</strong> Upload and deploy API proxies and shared flows</li>
+                            <li><strong>Manage:</strong> Update target servers and KVM entries</li>
+                            <li><strong>Browse:</strong> View existing proxies and shared flows</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4" id="organizationsSection" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-building"></i> Organizations</h5>
+            </div>
+            <div class="card-body">
+                <div id="organizationsList">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loadOrganizations() {
+    $('#organizationsSection').show();
+    
+    // Try to fetch from API first, fallback to hardcoded
+    fetch('/api/organizations')
+        .then(response => response.json())
+        .then(data => {
+            console.log('Dashboard Organizations API response:', data);
+            let organizations = [];
+            
+            if (data && data.organizations) {
+                // Handle both string array and object array formats
+                organizations = data.organizations.map(org => {
+                    if (typeof org === 'string') {
+                        return org;
+                    } else if (typeof org === 'object' && org.organization) {
+                        return org.organization;
+                    }
+                    return null;
+                }).filter(org => org !== null);
+            }
+            
+            // Fallback to hardcoded if no valid organizations found
+            if (organizations.length === 0) {
+                organizations = [
+                    'irx-apm1081130-slvr-01q6',
+                    'irx-apm1082662-slvr-013l', 
+                    'irx-apm1082662-gld-01c5',
+                    'test-org-1',
+                    'test-org-2'
+                ];
+            }
+            
+            console.log('Final dashboard organizations list:', organizations);
+            
+            let html = '<div class="row">';
+            organizations.forEach(orgName => {
+                html += `
+                    <div class="col-md-4 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">${orgName}</h6>
+                                <button class="btn btn-sm btn-outline-primary" onclick="loadEnvironments('${orgName}')">
+                                    View Environments
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            document.getElementById('organizationsList').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading dashboard organizations:', error);
+            // Fallback to hardcoded organizations
+            const organizations = [
+                'irx-apm1081130-slvr-01q6',
+                'irx-apm1082662-slvr-013l', 
+                'irx-apm1082662-gld-01c5',
+                'test-org-1',
+                'test-org-2'
+            ];
+            
+            let html = '<div class="row">';
+            organizations.forEach(orgName => {
+                html += `
+                    <div class="col-md-4 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">${orgName}</h6>
+                                <button class="btn btn-sm btn-outline-primary" onclick="loadEnvironments('${orgName}')">
+                                    View Environments
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            document.getElementById('organizationsList').innerHTML = html;
+        });
+}
+
+function loadEnvironments(org) {
+    const validOrg = window.validateOrgValue(org, 'loadEnvironments');
+    if (!validOrg) {
+        alert('Invalid organization selected. Please refresh the page.');
+        return;
+    }
+    
+    fetch(`/api/organizations/${encodeURIComponent(org)}/environments`)
+        .then(response => response.json())
+        .then(data => {
+            let envList = data.map ? data.map(env => env.name || env).join(', ') : 'No environments found';
+            alert(`Environments for ${org}:\n${envList}`);
+        })
+        .catch(error => {
+            alert('Error loading environments: ' + error.message);
+        });
+}
+</script>
+{% endblock %}

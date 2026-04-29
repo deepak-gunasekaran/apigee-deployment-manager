@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Revision Input</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { border: 1px solid #ccc; padding: 15px; margin: 10px 0; }
+        .result { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Debug Revision Input Issue</h1>
+    
+    <div class="test-section">
+        <h3>Test 1: Basic Number Input</h3>
+        <label>Revision (Basic):</label>
+        <input type="number" id="basic-revision" name="revision" value="1" min="1">
+        <button onclick="checkBasicValue()">Check Value</button>
+        <div id="basic-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test 2: Number Input with Form</h3>
+        <form id="test-form" onsubmit="return false;">
+            <label>Revision (Form):</label>
+            <input type="number" id="form-revision" name="revision" value="1" min="1">
+            <button type="button" onclick="checkFormValue()">Check Form Value</button>
+            <button type="submit" onclick="checkFormSubmission()">Submit Form</button>
+        </form>
+        <div id="form-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test 3: Hidden/Visible Toggle</h3>
+        <div id="revision-section">
+            <label>Revision (Toggle):</label>
+            <input type="number" id="toggle-revision" name="revision" value="1" min="1">
+        </div>
+        <button onclick="toggleVisibility()">Toggle Visibility</button>
+        <button onclick="checkToggleValue()">Check Value</button>
+        <div id="toggle-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Instructions</h3>
+        <ol>
+            <li><strong>Type a number manually</strong> in each input field (e.g., 5, 7, 9)</li>
+            <li><strong>Click the corresponding check button</strong> to see what value is captured</li>
+            <li><strong>Try using arrow buttons</strong> vs <strong>manual typing</strong></li>
+            <li><strong>Check if hidden fields</strong> lose their manually typed values</li>
+        </ol>
+    </div>
+
+    <script>
+        function checkBasicValue() {
+            const input = document.getElementById('basic-revision');
+            const result = document.getElementById('basic-result');
+            result.innerHTML = `
+                <strong>Basic Input Value:</strong><br>
+                input.value: "${input.value}"<br>
+                input.getAttribute('value'): "${input.getAttribute('value')}"<br>
+                Type: ${typeof input.value}
+            `;
+        }
+        
+        function checkFormValue() {
+            const input = document.getElementById('form-revision');
+            const form = document.getElementById('test-form');
+            const formData = new FormData(form);
+            const result = document.getElementById('form-result');
+            
+            result.innerHTML = `
+                <strong>Form Input Value:</strong><br>
+                input.value: "${input.value}"<br>
+                FormData.get('revision'): "${formData.get('revision')}"<br>
+                Form serialized: ${new URLSearchParams(formData).toString()}
+            `;
+        }
+        
+        function checkFormSubmission() {
+            const form = document.getElementById('test-form');
+            const formData = new FormData(form);
+            const result = document.getElementById('form-result');
+            
+            result.innerHTML += `<br><strong>Form Submission:</strong><br>`;
+            for (let [key, value] of formData.entries()) {
+                result.innerHTML += `${key}: "${value}"<br>`;
+            }
+        }
+        
+        let isHidden = false;
+        function toggleVisibility() {
+            const section = document.getElementById('revision-section');
+            isHidden = !isHidden;
+            section.style.display = isHidden ? 'none' : 'block';
+            
+            const result = document.getElementById('toggle-result');
+            result.innerHTML = `Section is now: ${isHidden ? 'HIDDEN' : 'VISIBLE'}`;
+        }
+        
+        function checkToggleValue() {
+            const input = document.getElementById('toggle-revision');
+            const section = document.getElementById('revision-section');
+            const result = document.getElementById('toggle-result');
+            
+            result.innerHTML += `<br><strong>Toggle Input Value:</strong><br>
+                input.value: "${input.value}"<br>
+                Section display: "${section.style.display}"<br>
+                Input visible: ${input.offsetParent !== null}
+            `;
+        }
+        
+        // Add event listeners to track changes
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = document.querySelectorAll('input[type="number"]');
+            inputs.forEach(input => {
+                input.addEventListener('input', function(e) {
+                    console.log(`Input changed: ${e.target.id} = "${e.target.value}"`);
+                });
+                
+                input.addEventListener('change', function(e) {
+                    console.log(`Change event: ${e.target.id} = "${e.target.value}"`);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
