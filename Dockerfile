@@ -1,5 +1,10 @@
 FROM python:3.11-slim
 
+# Build arguments for metadata
+ARG BUILD_DATE
+ARG BUILD_VERSION
+ARG COMMIT_SHA
+
 # Set working directory
 WORKDIR /app
 
@@ -27,6 +32,15 @@ RUN mkdir -p uploads
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
+
+# Add build metadata as labels
+LABEL org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.version="${BUILD_VERSION}" \
+      org.opencontainers.image.revision="${COMMIT_SHA}" \
+      org.opencontainers.image.title="Apigee Deployment Manager" \
+      org.opencontainers.image.description="Enhanced web application for managing Apigee API proxy and shared flow deployments" \
+      org.opencontainers.image.source="https://github.com/deepak-gunasekaran/apigee-deployment-manager" \
+      maintainer="deepakdpk6"
 
 # Expose port
 EXPOSE 5000

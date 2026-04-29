@@ -1,0 +1,189 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  DOCKER_REGISTRY: docker.io
+  DOCKER_USERNAME: deepakdpk6
+  IMAGE_NAME: apigee-deployment-manager
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for proper versioning
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ env.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_TOKEN }}
+    
+    - name: Generate version number
+      id: version
+      run: |
+        # Get the current date and time for build metadata
+        BUILD_DATE=$(date -u +'%Y%m%d')
+        BUILD_TIME=$(date -u +'%H%M%S')
+        
+        # Get commit SHA (short)
+        COMMIT_SHA=${GITHUB_SHA::8}
+        
+        # Get current branch name
+        BRANCH_NAME=${GITHUB_REF#refs/heads/}
+        
+        # Generate version based on trigger type
+        if [[ "${{ github.event_name }}" == "release" ]]; then
+          # For releases, use the tag name
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "TAGS=${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${VERSION},${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+          # For main branch pushes, use semantic versioning with auto-increment
+          # Get the latest tag, increment patch version
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
+          
+          # Extract version numbers
+          VERSION_NUM=${LATEST_TAG#v}
+          MAJOR=$(echo $VERSION_NUM | cut -d. -f1)
+          MINOR=$(echo $VERSION_NUM | cut -d. -f2)
+          PATCH=$(echo $VERSION_NUM | cut -d. -f3)
+          
+          # Increment patch version
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="v${MAJOR}.${MINOR}.${NEW_PATCH}"
+          
+          echo "VERSION=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "TAGS=${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${NEW_VERSION},${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/develop" ]]; then
+          # For develop branch, use develop tag with build number
+          VERSION="develop-${BUILD_DATE}.${BUILD_TIME}-${COMMIT_SHA}"
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "TAGS=${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${VERSION},${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:develop" >> $GITHUB_OUTPUT
+        else
+          # For PR or other branches, use branch name with commit
+          SAFE_BRANCH_NAME=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          VERSION="${SAFE_BRANCH_NAME}-${COMMIT_SHA}"
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "TAGS=${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${VERSION}" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "Generated version: $VERSION"
+        echo "BUILD_DATE=${BUILD_DATE}" >> $GITHUB_OUTPUT
+        echo "COMMIT_SHA=${COMMIT_SHA}" >> $GITHUB_OUTPUT
+        echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+    
+    - name: Create Git tag for new version
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag ${{ steps.version.outputs.VERSION }}
+        git push origin ${{ steps.version.outputs.VERSION }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=raw,value=${{ steps.version.outputs.VERSION }}
+          type=raw,value=latest,enable={{is_default_branch}}
+        labels: |
+          org.opencontainers.image.title=Apigee Deployment Manager
+          org.opencontainers.image.description=Enhanced web application for managing Apigee API proxy and shared flow deployments
+          org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+          org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
+          org.opencontainers.image.revision=${{ github.sha }}
+          org.opencontainers.image.source=${{ github.repositoryUrl }}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.version.outputs.TAGS }}
+        labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          BUILD_DATE=${{ steps.version.outputs.BUILD_DATE }}
+          BUILD_VERSION=${{ steps.version.outputs.VERSION }}
+          COMMIT_SHA=${{ steps.version.outputs.COMMIT_SHA }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Update Docker Hub description
+      uses: peter-evans/dockerhub-description@v3
+      with:
+        username: ${{ env.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_TOKEN }}
+        repository: ${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
+        readme-filepath: ./DOCKER_README.md
+    
+    - name: Create GitHub Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.VERSION }}
+        release_name: Release ${{ steps.version.outputs.VERSION }}
+        body: |
+          ## 🚀 Apigee Deployment Manager ${{ steps.version.outputs.VERSION }}
+          
+          ### 📦 Docker Image
+          ```bash
+          docker pull ${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
+          ```
+          
+          ### 🔄 Changes
+          - Auto-generated release from commit ${{ steps.version.outputs.COMMIT_SHA }}
+          - Built on ${{ steps.version.outputs.BUILD_DATE }}
+          - Multi-platform support (linux/amd64, linux/arm64)
+          
+          ### 🐳 Available Tags
+          - `${{ steps.version.outputs.VERSION }}` - This specific version
+          - `latest` - Always points to the latest stable release
+          
+          ### 📋 Quick Start
+          ```bash
+          docker run -d -p 5001:5000 \
+            -e GCP_OAUTH_TOKEN="$(gcloud auth print-access-token)" \
+            ${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
+          ```
+        draft: false
+        prerelease: false
+    
+    - name: Post build summary
+      run: |
+        echo "## 🎉 Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+        echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| **Version** | \`${{ steps.version.outputs.VERSION }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Docker Tags** | \`${{ steps.version.outputs.TAGS }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Build Date** | ${{ steps.version.outputs.BUILD_DATE }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Commit SHA** | \`${{ steps.version.outputs.COMMIT_SHA }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Branch** | \`${{ steps.version.outputs.BRANCH_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| **Platforms** | linux/amd64, linux/arm64 |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🐳 Pull Command" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "docker pull ${{ env.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
